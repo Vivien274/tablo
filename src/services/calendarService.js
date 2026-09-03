@@ -141,7 +141,7 @@ export async function fetchCalendarFromUrl(calendarUrl) {
   }
 
   try {
-    const res = await fetch(`/api/fetch-calendar?url=${encodeURIComponent(cleanUrl)}`);
+    const res = await fetch(`/api/fetch-calendar?url=${encodeURIComponent(cleanUrl)}&_t=${Date.now()}`);
     if (!res.ok) throw new Error('Erreur de téléchargement du calendrier');
     const icsText = await res.text();
     const events = parseIcsCalendar(icsText);
@@ -154,3 +154,44 @@ export async function fetchCalendarFromUrl(calendarUrl) {
     return [];
   }
 }
+
+// Créer un événement dans Google Calendar via Webhook Google Apps Script
+export async function createGoogleCalendarEvent(webhookUrl, eventData) {
+  if (!webhookUrl || !webhookUrl.trim()) {
+    throw new Error("L'URL du Webhook Google Calendar n'est pas configurée. Rendez-vous dans 'Synchroniser' pour l'ajouter.");
+  }
+
+  const cleanUrl = webhookUrl.trim();
+  const payload = {
+    title: eventData.title,
+    startTime: eventData.startTime, // ISO string
+    endTime: eventData.endTime,     // ISO string
+    allDay: !!eventData.allDay,
+    location: eventData.location || '',
+  };
+
+  try {
+    // Essai via le proxy Vite local pour éviter tout problème CORS
+    const proxyRes = await fetch('/api/create-calendar-event', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ webhookUrl: cleanUrl, event: payload }),
+    });
+    if (proxyRes.ok) {
+      return await proxyRes.json();
+    }
+  } catch (e) {
+    console.debug('Proxy creation fallback:', e);
+  }
+
+  // Fallback direct vers Google Apps Script Web App avec mode no-cors
+  await fetch(cleanUrl, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload),
+  });
+
+  return { status: 'success' };
+}
+

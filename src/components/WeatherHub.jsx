@@ -9,6 +9,75 @@ import {
 import WeatherIcon from './WeatherIcon';
 import { getWeatherMeta } from '../services/weatherService';
 
+function getWeatherBlobStyle(weatherData, meta) {
+  const current = weatherData?.current;
+  const temp = current?.temp ?? 20;
+  const code = current?.code ?? current?.weatherCode ?? 1;
+  const isDay = current?.isDay ?? 1;
+  const precip = current?.precipitation ?? 0;
+
+  // 1. Très chaud (temp >= 28°C) en journée -> Orange chaud / canicule
+  if (temp >= 28 && isDay) {
+    return {
+      background: 'radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.35) 0%, rgba(234, 88, 12, 0.12) 45%, transparent 75%)',
+    };
+  }
+
+  // 2. Orage (codes 95, 96, 82) -> Violet / Pourpre
+  if (code === 95 || code === 96 || code === 82) {
+    return {
+      background: 'radial-gradient(circle at 0% 0%, rgba(168, 85, 247, 0.35) 0%, rgba(126, 34, 206, 0.12) 45%, transparent 75%)',
+    };
+  }
+
+  // 3. Pluie / Averses / Bruine -> Bleu pluie
+  if ((code >= 51 && code <= 67) || code === 80 || code === 81 || precip > 0.5) {
+    return {
+      background: 'radial-gradient(circle at 0% 0%, rgba(59, 130, 246, 0.35) 0%, rgba(14, 165, 233, 0.12) 45%, transparent 75%)',
+    };
+  }
+
+  // 4. Neige / Verglas / Grand froid (temp <= 0°C ou codes 71-77, 85, 86) -> Bleu glacier / Cyan
+  if ((code >= 71 && code <= 77) || code === 85 || code === 86 || temp <= 0) {
+    return {
+      background: 'radial-gradient(circle at 0% 0%, rgba(186, 230, 253, 0.35) 0%, rgba(56, 189, 248, 0.12) 45%, transparent 75%)',
+    };
+  }
+
+  // 5. Soleil / Ciel dégagé (codes 0, 1) en journée -> Jaune soleil
+  if ((code === 0 || code === 1) && isDay) {
+    if (temp >= 24) {
+      // Tiède/chaud (24-27°C) : jaune orangé
+      return {
+        background: 'radial-gradient(circle at 0% 0%, rgba(251, 146, 60, 0.35) 0%, rgba(245, 158, 11, 0.12) 45%, transparent 75%)',
+      };
+    }
+    // Jaune éclatant
+    return {
+      background: 'radial-gradient(circle at 0% 0%, rgba(250, 204, 21, 0.35) 0%, rgba(234, 179, 8, 0.12) 45%, transparent 75%)',
+    };
+  }
+
+  // 6. Nuit dégagée -> Indigo / Nuit claire
+  if (!isDay && (code === 0 || code === 1)) {
+    return {
+      background: 'radial-gradient(circle at 0% 0%, rgba(99, 102, 241, 0.30) 0%, rgba(79, 70, 229, 0.10) 45%, transparent 75%)',
+    };
+  }
+
+  // 7. Nuageux avec éclaircies (code 2) -> Azur ciel
+  if (code === 2) {
+    return {
+      background: 'radial-gradient(circle at 0% 0%, rgba(56, 189, 248, 0.30) 0%, rgba(250, 204, 21, 0.08) 45%, transparent 75%)',
+    };
+  }
+
+  // Couvert / standard -> Ardoise doux
+  return {
+    background: 'radial-gradient(circle at 0% 0%, rgba(148, 163, 184, 0.25) 0%, rgba(56, 189, 248, 0.08) 45%, transparent 75%)',
+  };
+}
+
 export default function WeatherHub({ weatherData }) {
   const current = weatherData?.current;
   const meta = current?.meta || { label: 'Partiellement nuageux', icon: 'CloudSun', dayColor: 'text-sky-300' };
@@ -17,12 +86,10 @@ export default function WeatherHub({ weatherData }) {
 
   return (
     <div className="bento-card p-4 sm:p-5 flex flex-col justify-between h-full relative overflow-hidden group w-full">
-      {/* Lueur atmosphérique subtile */}
+      {/* Blob météo dynamique : dégradé radial doux épousant l'arrondi sans débordement carré */}
       <div
-        className="absolute -right-20 -top-20 w-72 h-72 rounded-full blur-3xl pointer-events-none opacity-30 transition-all duration-1000"
-        style={{
-          background: meta.bgGlow || 'radial-gradient(circle, rgba(56,189,248,0.2) 0%, rgba(99,102,241,0.08) 60%, transparent 80%)',
-        }}
+        className="absolute top-0 left-0 w-80 h-80 pointer-events-none rounded-tl-3xl transition-all duration-1000"
+        style={getWeatherBlobStyle(weatherData, meta)}
       />
 
       {/* 

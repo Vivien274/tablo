@@ -83,12 +83,50 @@ const tabloProxyPlugin = {
         });
         const icsText = await response.text();
         res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
-        res.setHeader('Cache-Control', 'public, max-age=300'); // 5 minutes cache
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
         res.end(icsText);
       } catch (err) {
         res.statusCode = 500;
         res.end(err.message || 'Error fetching calendar');
       }
+    });
+
+    // 4. Proxy pour créer des événements Google Calendar via Google Apps Script Webhook
+    server.middlewares.use('/api/create-calendar-event', async (req, res) => {
+      if (req.method !== 'POST') {
+        res.statusCode = 405;
+        res.end('Method Not Allowed');
+        return;
+      }
+
+      let body = '';
+      req.on('data', (chunk) => { body += chunk; });
+      req.on('end', async () => {
+        try {
+          const { webhookUrl, event } = JSON.parse(body);
+          if (!webhookUrl) {
+            res.statusCode = 400;
+            res.end(JSON.stringify({ error: 'Missing webhookUrl' }));
+            return;
+          }
+
+          const response = await fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify(event),
+            redirect: 'follow',
+          });
+
+          const data = await response.text();
+          res.setHeader('Content-Type', 'application/json');
+          res.end(data || JSON.stringify({ status: 'success' }));
+        } catch (err) {
+          res.statusCode = 500;
+          res.end(JSON.stringify({ error: err.message }));
+        }
+      });
     });
   },
 };

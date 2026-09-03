@@ -3,7 +3,8 @@ import HeaderBar from './components/HeaderBar';
 import ClockWidget from './components/ClockWidget';
 import WeatherHub from './components/WeatherHub';
 import TodoWidget from './components/TodoWidget';
-import PhotoFrameWidget from './components/PhotoFrameWidget';
+import CalendarWidget from './components/CalendarWidget';
+import PhotoSettingsModal from './components/PhotoSettingsModal';
 import CityModal from './components/CityModal';
 import ScreenSaverOverlay from './components/ScreenSaverOverlay';
 import NightScheduleOverlay from './components/NightScheduleOverlay';
@@ -11,6 +12,7 @@ import { fetchWeather } from './services/weatherService';
 import { fetchSharedGooglePhotosAlbum } from './services/googlePhotosService';
 import { fetchCalendarFromUrl, DEFAULT_CALENDAR_EVENTS } from './services/calendarService';
 import { storage } from './services/storageService';
+import { useWakeLock } from './hooks/useWakeLock';
 
 const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes d'inactivité
 
@@ -41,13 +43,18 @@ export default function App() {
   const [photos, setPhotos] = useState(() => storage.getPhotos());
 
   const [calendarUrl, setCalendarUrl] = useState(() => storage.getCalendarUrl());
-  const [calendarEvents, setCalendarEvents] = useState(DEFAULT_CALENDAR_EVENTS);
+  const [calendarWebhookUrl, setCalendarWebhookUrl] = useState(() => storage.getCalendarWebhookUrl());
+  const [calendarEvents, setCalendarEvents] = useState(() => storage.getCustomCalendarEvents());
 
   const [isCityModalOpen, setIsCityModalOpen] = useState(false);
+  const [isPhotoSettingsOpen, setIsPhotoSettingsOpen] = useState(false);
   const [isScreenSaverActive, setIsScreenSaverActive] = useState(false);
   const [isNightModeActive, setIsNightModeActive] = useState(() => isWithinNightHours());
 
   const idleTimerRef = useRef(null);
+
+  // Maintien automatique de l'écran iPad allumé en permanence
+  useWakeLock();
 
   // Load weather
   const loadWeather = useCallback(async (targetCity) => {
@@ -65,10 +72,29 @@ export default function App() {
     return () => clearInterval(interval);
   }, [city, loadWeather]);
 
-  // Sync Calendar
+  // Sync Calendar avec fusion et persistance des événements locaux ajoutés
   const loadCalendar = useCallback(async (url) => {
-    const events = await fetchCalendarFromUrl(url);
-    setCalendarEvents(events);
+    const fetchedEvents = await fetchCalendarFromUrl(url);
+    const customEvents = storage.getCustomCalendarEvents();
+
+    // Vérifier si des customEvents ont déjà été intégrés dans le flux Google pour éviter les doublons
+    const remainingCustomEvents = customEvents.filter((custom) => {
+      const customTime = new Date(custom.startDate).getTime();
+      const alreadyInGoogle = fetchedEvents.some(
+        (g) =>
+          g.title?.toLowerCase().trim() === custom.title?.toLowerCase().trim() &&
+          Math.abs(new Date(g.startDate).getTime() - customTime) < 4 * 3600 * 1000
+      );
+      return !alreadyInGoogle;
+    });
+
+    if (remainingCustomEvents.length !== customEvents.length) {
+      storage.setCustomCalendarEvents(remainingCustomEvents);
+    }
+
+    // Fusionner les événements locaux récents avec les événements Google
+    const merged = [...remainingCustomEvents, ...fetchedEvents];
+    setCalendarEvents(merged);
   }, []);
 
   useEffect(() => {
@@ -189,12 +215,23 @@ export default function App() {
     loadCalendar(newUrl);
   };
 
+  const handleUpdateCalendarWebhookUrl = (newUrl) => {
+    setCalendarWebhookUrl(newUrl);
+    storage.setCalendarWebhookUrl(newUrl);
+  };
+
+  const handleAddLocalEvent = (newEvent) => {
+    storage.addCustomCalendarEvent(newEvent);
+    setCalendarEvents((prev) => [newEvent, ...prev.filter((e) => e.id !== newEvent.id)]);
+  };
+
   return (
     <div className="h-screen max-h-screen bg-[#07080c] text-zinc-100 p-3 sm:p-4 md:p-5 flex flex-col justify-between max-w-[1720px] mx-auto w-full overflow-hidden">
       {/* En-tête épuré */}
       <HeaderBar
         currentCity={city}
         onOpenCityModal={() => setIsCityModalOpen(true)}
+        onOpenPhotoSettings={() => setIsPhotoSettingsOpen(true)}
         onTriggerScreenSaver={handleTriggerScreenSaver}
         onToggleNightMode={handleToggleNightMode}
       />
@@ -202,7 +239,7 @@ export default function App() {
       {/* 
         Grille Bento 2 Colonnes & 2 Lignes (Split 35% / 65%) :
         Ligne 1 (35% hauteur) : 1. Heure | 2. Météo (Gradient Weather)
-        Ligne 2 (65% hauteur) : 3. Tâches & Agenda | 4. Photos
+        Ligne 2 (65% hauteur) : 3. Tâches familiales | 4. Agenda familial
       */}
       <main className="grid grid-cols-1 lg:grid-cols-2 grid-rows-[auto_auto] lg:grid-rows-[35fr_65fr] gap-3 sm:gap-4 md:gap-5 my-2 flex-1 items-stretch w-full overflow-hidden">
         {/* LIGNE 1 (35% HAUTEUR) */}
@@ -222,33 +259,29 @@ export default function App() {
         </div>
 
         {/* LIGNE 2 (65% HAUTEUR) */}
-        {/* 3. TÂCHES & AGENDA FAMILIAL */}
+        {/* 3. TÂCHES FAMILIALES */}
         <div className="w-full h-full flex overflow-hidden">
           <TodoWidget
             todos={todos}
             onUpdateTodos={handleUpdateTodos}
             members={members}
+          />
+        </div>
+
+        {/* 4. AGENDA FAMILIAL */}
+        <div className="w-full h-full flex overflow-hidden">
+          <CalendarWidget
             calendarEvents={calendarEvents}
             calendarUrl={calendarUrl}
             onUpdateCalendarUrl={handleUpdateCalendarUrl}
-          />
-        </div>
-
-        {/* 4. PHOTOS */}
-        <div className="w-full h-full flex overflow-hidden">
-          <PhotoFrameWidget
-            photos={photos}
-            onUpdatePhotos={handleUpdatePhotos}
+            calendarWebhookUrl={calendarWebhookUrl}
+            onUpdateCalendarWebhookUrl={handleUpdateCalendarWebhookUrl}
+            onRefreshCalendar={() => loadCalendar(calendarUrl)}
+            onAddLocalEvent={handleAddLocalEvent}
+            members={members}
           />
         </div>
       </main>
-
-      {/* Footer discret */}
-      <footer className="w-full text-center py-1 text-[11px] text-zinc-500 font-mono-numbers flex items-center justify-between px-2 shrink-0">
-        <span className="hidden sm:inline">Tablo • Protection iPad Pro active (Pixel-Shift + Veille 23h-7h)</span>
-        <span className="mx-auto sm:mx-0">Économiseur auto (5 min) • Toucher pour réveiller</span>
-        <span className="hidden sm:inline">v1.6.0</span>
-      </footer>
 
       {/* City Switcher Modal */}
       <CityModal
@@ -256,6 +289,14 @@ export default function App() {
         onClose={() => setIsCityModalOpen(false)}
         onSelectCity={handleSelectCity}
         currentCity={city}
+      />
+
+      {/* Photos Settings Modal (Diaporama de veille) */}
+      <PhotoSettingsModal
+        isOpen={isPhotoSettingsOpen}
+        onClose={() => setIsPhotoSettingsOpen(false)}
+        photos={photos}
+        onUpdatePhotos={handleUpdatePhotos}
       />
 
       {/* 1. Économiseur d'écran Diaporama (Photo en fond + 2 colonnes en haut + Tâches en bas à gauche + Pixel-shift) */}

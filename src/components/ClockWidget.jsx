@@ -89,20 +89,25 @@ export default function ClockWidget({ weatherData }) {
 
   return (
     <div className="bento-card p-4 sm:p-5 flex flex-col justify-between h-full relative group overflow-hidden w-full">
-      {/* Ambient Glow */}
-      <div className="absolute -top-20 -left-20 w-60 h-60 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
+      {/* Ambient Glow : Dégradé radial doux épousant l'arrondi sans débordement carré */}
+      <div
+        className="absolute top-0 left-0 w-80 h-80 pointer-events-none rounded-tl-3xl"
+        style={{
+          background: 'radial-gradient(circle at 0% 0%, rgba(56, 189, 248, 0.16) 0%, rgba(56, 189, 248, 0.04) 50%, transparent 75%)',
+        }}
+      />
 
       {/* Barre supérieure compacte */}
       <div className="flex items-center justify-between z-10 w-full">
-        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.08] backdrop-blur-md">
+        <div className="inline-flex items-center gap-1.5 text-zinc-300">
           <span className="text-xs">{greeting.icon}</span>
-          <span className="text-xs font-medium text-zinc-200 tracking-wide">
+          <span className="text-xs font-medium tracking-wide text-zinc-300">
             {greeting.text}
           </span>
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="px-2 py-0.5 rounded-md bg-white/[0.03] border border-white/[0.06] font-mono-numbers text-[11px] text-zinc-400">
+          <span className="font-mono-numbers text-[11px] text-zinc-400">
             Semaine {weekNum}
           </span>
         </div>

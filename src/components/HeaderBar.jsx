@@ -4,14 +4,14 @@ import {
   Minimize,
   Moon,
   Sparkles,
-  MapPin,
-  Tv,
+  Image as ImageIcon,
 } from 'lucide-react';
 
 export default function HeaderBar({
   onTriggerScreenSaver,
   onToggleNightMode,
   onOpenCityModal,
+  onOpenPhotoSettings,
   currentCity,
 }) {
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -38,53 +38,49 @@ export default function HeaderBar({
 
   return (
     <header className="w-full flex items-center justify-between py-2 sm:py-3 px-1 shrink-0">
-      {/* Brand logo */}
-      <div className="flex items-center gap-3">
-        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-sky-400 via-indigo-500 to-purple-600 p-[1px] shadow-lg shadow-sky-500/20">
-          <div className="w-full h-full bg-zinc-950 rounded-[15px] flex items-center justify-center">
-            <span className="font-display font-extrabold text-base sm:text-lg bg-gradient-to-r from-sky-400 to-indigo-300 bg-clip-text text-transparent">
-              T
-            </span>
-          </div>
+      {/* Brand & City Tag */}
+      <div>
+        <div className="flex items-center gap-2.5">
+          <h1 className="font-display font-bold text-lg sm:text-xl tracking-tight text-white">
+            Tablo
+          </h1>
+          <button
+            type="button"
+            onClick={onOpenCityModal}
+            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 transition-all touch-press cursor-pointer active:scale-95"
+            title="Changer le lieu"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 animate-pulse" />
+            <span>{currentCity?.name || 'Comines'}</span>
+          </button>
         </div>
-
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="font-display font-bold text-lg sm:text-xl tracking-tight text-white">
-              Tablo
-            </h1>
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1 animate-pulse" />
-              Maison
-            </span>
-          </div>
-          <p className="text-[11px] text-zinc-400 hidden sm:block">
-            Dashboard mural connecté
-          </p>
-        </div>
+        <p className="text-[11px] text-zinc-400 hidden sm:block">
+          Dashboard mural connecté
+        </p>
       </div>
 
       {/* Right controls */}
       <div className="flex items-center gap-2">
-        {/* City button */}
-        <button
-          onClick={onOpenCityModal}
-          className="px-3 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-xs font-medium text-zinc-300 flex items-center gap-1.5 transition-all touch-press"
-          title="Changer la ville"
-        >
-          <MapPin className="w-3.5 h-3.5 text-sky-400" />
-          <span className="max-w-[90px] sm:max-w-[140px] truncate">{currentCity?.name || 'Paris'}</span>
-        </button>
 
-        {/* 1. Bouton Écran de Veille Photos */}
-        <button
-          onClick={onTriggerScreenSaver}
-          className="px-2.5 py-1.5 rounded-xl bg-white/[0.04] hover:bg-sky-500/15 hover:text-sky-300 border border-white/[0.08] text-zinc-300 text-xs font-medium flex items-center gap-1.5 transition-all touch-press"
-          title="Lancer l'économiseur d'écran (Photos + Heure + Météo + Tâches)"
-        >
-          <Sparkles className="w-3.5 h-3.5 text-sky-400" />
-          <span className="hidden sm:inline">Veille Photos</span>
-        </button>
+        {/* 1. Bouton Écran de Veille Photos & Source Photos */}
+        <div className="flex items-center rounded-xl bg-white/[0.04] border border-white/[0.08] p-0.5">
+          <button
+            onClick={onTriggerScreenSaver}
+            className="px-2.5 py-1 rounded-lg hover:bg-sky-500/15 hover:text-sky-300 text-zinc-300 text-xs font-medium flex items-center gap-1.5 transition-all touch-press"
+            title="Lancer l'économiseur d'écran (Photos + Heure + Météo + Tâches)"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-sky-400" />
+            <span className="hidden sm:inline">Veille Photos</span>
+          </button>
+          <div className="w-[1px] h-3.5 bg-white/10" />
+          <button
+            onClick={onOpenPhotoSettings}
+            className="p-1.5 rounded-lg hover:bg-sky-500/15 hover:text-sky-300 text-zinc-400 transition-all touch-press"
+            title="Configurer l'album Google Photos de l'écran de veille"
+          >
+            <ImageIcon className="w-3.5 h-3.5 text-sky-400/80" />
+          </button>
+        </div>
 
         {/* 2. Bouton Mode Nuit OLED */}
         <button

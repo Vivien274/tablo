@@ -179,6 +179,45 @@ export const storage = {
       console.error(e);
     }
   },
+  getCalendarWebhookUrl: () => {
+    try {
+      return localStorage.getItem('tablo_cal_webhook') || '';
+    } catch {
+      return '';
+    }
+  },
+  setCalendarWebhookUrl: (url) => {
+    try {
+      localStorage.setItem('tablo_cal_webhook', url);
+    } catch (e) {
+      console.error(e);
+    }
+  },
+  getCustomCalendarEvents: () => {
+    try {
+      const data = localStorage.getItem('tablo_custom_cal_events');
+      return data ? JSON.parse(data) : [];
+    } catch {
+      return [];
+    }
+  },
+  setCustomCalendarEvents: (events) => {
+    try {
+      localStorage.setItem('tablo_custom_cal_events', JSON.stringify(events));
+    } catch (e) {
+      console.error(e);
+    }
+  },
+  addCustomCalendarEvent: (event) => {
+    try {
+      const existing = storage.getCustomCalendarEvents();
+      const updated = [event, ...existing.filter((e) => e.id !== event.id)];
+      storage.setCustomCalendarEvents(updated);
+      return updated;
+    } catch {
+      return [event];
+    }
+  },
   getCity: () => {
     try {
       const data = localStorage.getItem(KEYS.CITY);
