@@ -98,14 +98,13 @@ export default function ScreenSaverOverlay({
             alt={photo.title || 'Photo Économiseur'}
             referrerPolicy="no-referrer"
             className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1500 ease-in-out ${
-              idx === photoIndex ? 'opacity-85 scale-100 animate-ken-burns' : 'opacity-0 scale-105'
+              idx === photoIndex ? 'opacity-100 scale-100 animate-ken-burns' : 'opacity-0 scale-105'
             }`}
           />
         ))}
 
-        {/* Voiles dégradés sombres pour une lisibilité parfaite des informations */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-black/75" />
-        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-transparent to-black/50" />
+        {/* Voile très léger pour conserver l'éclat des photos tout en gardant le texte lisible */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/25 pointer-events-none" />
       </div>
 
       {/* CONTENEUR GLOBAL AVEC PIXEL-SHIFT ANTI-MARQUAGE */}
@@ -122,22 +121,22 @@ export default function ScreenSaverOverlay({
           {/* Colonne 1 : Date & Heure (Urbanist Minimal Grand Format) */}
           <div className="md:col-span-7 flex flex-col items-start">
             <div className="flex items-baseline tracking-tight">
-              <span className="font-clock-urbanist text-7xl sm:text-8xl md:text-9xl lg:text-[11.5rem] xl:text-[13rem] font-light text-white tracking-tight drop-shadow-2xl leading-none">
+              <span className="font-clock-urbanist text-7xl sm:text-8xl md:text-9xl lg:text-[11.5rem] xl:text-[13rem] font-light text-white tracking-tight leading-none drop-shadow-[0_10px_30px_rgba(0,0,0,0.85)]">
                 {hours}
               </span>
-              <span className="font-clock-urbanist text-6xl sm:text-7xl md:text-8xl lg:text-[10rem] xl:text-[11.5rem] font-extralight text-sky-400/60 mx-1 sm:mx-2 animate-pulse-soft select-none">
+              <span className="font-clock-urbanist text-6xl sm:text-7xl md:text-8xl lg:text-[10rem] xl:text-[11.5rem] font-extralight text-sky-400 mx-1 sm:mx-2 animate-pulse-soft select-none drop-shadow-[0_6px_20px_rgba(0,0,0,0.8)]">
                 :
               </span>
-              <span className="font-clock-urbanist text-7xl sm:text-8xl md:text-9xl lg:text-[11.5rem] xl:text-[13rem] font-light text-white tracking-tight drop-shadow-2xl leading-none">
+              <span className="font-clock-urbanist text-7xl sm:text-8xl md:text-9xl lg:text-[11.5rem] xl:text-[13rem] font-light text-white tracking-tight leading-none drop-shadow-[0_10px_30px_rgba(0,0,0,0.85)]">
                 {minutes}
               </span>
-              <span className="font-clock-urbanist text-2xl sm:text-3xl md:text-4xl text-zinc-400/80 font-light ml-3 sm:ml-4 self-end mb-3 sm:mb-7 opacity-75">
+              <span className="font-clock-urbanist text-2xl sm:text-3xl md:text-4xl text-white/90 font-light ml-3 sm:ml-4 self-end mb-3 sm:mb-7 drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)]">
                 {seconds}
               </span>
             </div>
 
             {/* Date complète */}
-            <div className="flex items-center gap-2.5 mt-2 sm:mt-3 text-zinc-200 font-display">
+            <div className="flex items-center gap-2.5 mt-2 sm:mt-3 text-white font-display drop-shadow-[0_4px_14px_rgba(0,0,0,0.85)]">
               <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-sky-400 shrink-0 drop-shadow" />
               <span className="text-xl sm:text-2xl md:text-3xl font-medium tracking-wide text-white drop-shadow-md">
                 {capitalizedDate}
