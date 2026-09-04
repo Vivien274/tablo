@@ -13,6 +13,20 @@
       "color": "#22d3ee",
       "url": "https://calendar.google.com/calendar/ical/ac4ea2c26ef26ed919293e37db19e46baa04ad2e83e14cc7c877e2f41912c40c%40group.calendar.google.com/private-347f7d256e09c6f3c5f8f83083afc9e9/basic.ics",
       "enabled": true
+    },
+    {
+      "id": "cal-evenements",
+      "name": "Événements familiaux",
+      "color": "#f43f5e",
+      "url": "",
+      "enabled": true
+    },
+    {
+      "id": "cal-famille",
+      "name": "Famille",
+      "color": "#eab308",
+      "url": "",
+      "enabled": true
     }
   ],
   "calendarWebhookUrl": "",

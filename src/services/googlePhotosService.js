@@ -12,22 +12,22 @@ export async function fetchSharedGooglePhotosAlbum(albumUrl) {
 
   let html = '';
 
-  // 1. Essai via le proxy local Vite
+  // 1. Essai via le proxy local / Vercel Serverless
   try {
-    const proxyUrl = `/api/fetch-album?url=${encodeURIComponent(cleanUrl)}`;
-    const res = await fetch(proxyUrl);
+    const proxyUrl = `/api/fetch-album?url=${encodeURIComponent(cleanUrl)}&_t=${Date.now()}`;
+    const res = await fetch(proxyUrl, { cache: 'no-store' });
     if (res.ok) {
       html = await res.text();
     }
   } catch (err) {
-    console.warn('Local proxy failed, trying public CORS fallback:', err);
+    console.warn('Local / Vercel proxy failed, trying public CORS fallback:', err);
   }
 
   // 2. Fallback via proxy public si nécessaire
   if (!html || html.length < 500) {
     try {
-      const corsProxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(cleanUrl)}`;
-      const res = await fetch(corsProxy);
+      const corsProxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(cleanUrl)}&_t=${Date.now()}`;
+      const res = await fetch(corsProxy, { cache: 'no-store' });
       if (res.ok) {
         html = await res.text();
       }
@@ -62,12 +62,13 @@ export async function fetchSharedGooglePhotosAlbum(albumUrl) {
     throw new Error("Aucune photo trouvée dans cet album partagé. Assurez-vous que le lien de partage est bien valide.");
   }
 
-  // 5. Servir les images via le proxy local d'image (ou direct si hors proxy)
+  // 5. Servir les images en direct (CDN haute résolution Google) avec proxy de secours
   const photos = uniqueUrls.map((rawUrl, idx) => {
     const fullResUrl = `${rawUrl}=w1920-h1200-no`;
     return {
       id: `gp-${idx}-${Date.now()}`,
-      url: `/api/image-proxy?url=${encodeURIComponent(fullResUrl)}`,
+      url: fullResUrl,
+      proxyUrl: `/api/image-proxy?url=${encodeURIComponent(fullResUrl)}`,
       rawUrl: fullResUrl,
       title: albumTitle,
       location: 'Google Photos',

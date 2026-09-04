@@ -101,6 +101,27 @@ export const DEFAULT_CALENDARS = [
     url: 'https://calendar.google.com/calendar/ical/vivien274%40gmail.com/private-72f1bfe6d142f4988834d66bd8edc7fc/basic.ics',
     enabled: true,
   },
+  {
+    id: 'cal-marches',
+    name: 'Marchés',
+    color: '#22d3ee',
+    url: 'https://calendar.google.com/calendar/ical/ac4ea2c26ef26ed919293e37db19e46baa04ad2e83e14cc7c877e2f41912c40c%40group.calendar.google.com/private-347f7d256e09c6f3c5f8f83083afc9e9/basic.ics',
+    enabled: true,
+  },
+  {
+    id: 'cal-evenements',
+    name: 'Événements familiaux',
+    color: '#f43f5e',
+    url: '',
+    enabled: true,
+  },
+  {
+    id: 'cal-famille',
+    name: 'Famille',
+    color: '#eab308',
+    url: '',
+    enabled: true,
+  },
 ];
 
 const KEYS = {
@@ -126,10 +147,31 @@ export const storage = {
       if (!res.ok) throw new Error('Failed to fetch config');
       const data = await res.json();
       if (data) {
-        if (data.calendars) storage.setCalendars(data.calendars, false);
-        if (data.calendarWebhookUrl !== undefined) storage.setCalendarWebhookUrl(data.calendarWebhookUrl, false);
-        if (data.googleAlbumUrl) storage.setGoogleAlbumUrl(data.googleAlbumUrl, false);
-        if (data.city) storage.setCity(data.city, false);
+        if (data.calendars && Array.isArray(data.calendars)) {
+          const current = storage.getCalendars();
+          if (!current || current.length === 0) {
+            storage.setCalendars(data.calendars, false);
+          } else if (current.length < data.calendars.length) {
+            // Ajouter les agendas du serveur manquants localement
+            const localUrls = new Set(current.map((c) => c.url).filter(Boolean));
+            const localIds = new Set(current.map((c) => c.id));
+            const toAdd = data.calendars.filter(
+              (c) => !localIds.has(c.id) && (!c.url || !localUrls.has(c.url))
+            );
+            if (toAdd.length > 0) {
+              storage.setCalendars([...current, ...toAdd], false);
+            }
+          }
+        }
+        if (data.calendarWebhookUrl !== undefined && !storage.getCalendarWebhookUrl()) {
+          storage.setCalendarWebhookUrl(data.calendarWebhookUrl, false);
+        }
+        if (data.googleAlbumUrl && !storage.getGoogleAlbumUrl()) {
+          storage.setGoogleAlbumUrl(data.googleAlbumUrl, false);
+        }
+        if (data.city && !storage.getCity()) {
+          storage.setCity(data.city, false);
+        }
         return data;
       }
     } catch (e) {

@@ -65,13 +65,24 @@ export default function App() {
       if (serverConfig) {
         if (serverConfig.calendars && Array.isArray(serverConfig.calendars)) {
           setCalendars((prev) => {
-            if (JSON.stringify(prev) !== JSON.stringify(serverConfig.calendars)) {
-              return serverConfig.calendars;
+            // Priorité absolue aux agendas locaux si l'utilisateur en a configuré plus
+            if (prev && prev.length > serverConfig.calendars.length) {
+              return prev;
+            }
+            const existingUrls = new Set(prev.map((c) => c.url).filter(Boolean));
+            const existingIds = new Set(prev.map((c) => c.id));
+            const additions = serverConfig.calendars.filter(
+              (c) => !existingIds.has(c.id) && (!c.url || !existingUrls.has(c.url))
+            );
+            if (additions.length > 0) {
+              const merged = [...prev, ...additions];
+              storage.setCalendars(merged, false);
+              return merged;
             }
             return prev;
           });
         }
-        if (serverConfig.calendarWebhookUrl !== undefined) {
+        if (serverConfig.calendarWebhookUrl !== undefined && !calendarWebhookUrl) {
           setCalendarWebhookUrl((prev) =>
             serverConfig.calendarWebhookUrl !== prev ? serverConfig.calendarWebhookUrl : prev
           );
@@ -99,7 +110,7 @@ export default function App() {
       clearInterval(interval);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, []);
+  }, [calendarWebhookUrl]);
 
   // Load weather
   const loadWeather = useCallback(async (targetCity) => {
@@ -150,22 +161,34 @@ export default function App() {
     return () => clearInterval(interval);
   }, [calendars, loadCalendar]);
 
-  // Initial sync for Google Photos
-  useEffect(() => {
+  // Chargement et rafraîchissement régulier des photos de l'album Google Photos
+  const loadPhotos = useCallback(async () => {
     const albumUrl = storage.getGoogleAlbumUrl();
     if (albumUrl) {
-      fetchSharedGooglePhotosAlbum(albumUrl)
-        .then((res) => {
-          if (res.photos && res.photos.length > 0) {
-            setPhotos(res.photos);
-            storage.setPhotos(res.photos);
-          }
-        })
-        .catch((err) => {
-          console.warn('Initial Google Photos fetch error:', err);
-        });
+      try {
+        const res = await fetchSharedGooglePhotosAlbum(albumUrl);
+        if (res.photos && res.photos.length > 0) {
+          setPhotos(res.photos);
+          storage.setPhotos(res.photos);
+        }
+      } catch (err) {
+        console.warn('Google Photos fetch error:', err);
+      }
     }
   }, []);
+
+  useEffect(() => {
+    loadPhotos();
+    const interval = setInterval(loadPhotos, 15 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [loadPhotos]);
+
+  // Rafraîchir les photos dès que l'économiseur s'active
+  useEffect(() => {
+    if (isScreenSaverActive) {
+      loadPhotos();
+    }
+  }, [isScreenSaverActive, loadPhotos]);
 
   // Night Mode schedule check every minute
   useEffect(() => {

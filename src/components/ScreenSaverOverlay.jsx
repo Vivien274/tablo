@@ -20,7 +20,8 @@ export default function ScreenSaverOverlay({
   members,
 }) {
   const [time, setTime] = useState(new Date());
-  const [photoIndex, setPhotoIndex] = useState(0);
+  const [shuffledIndices, setShuffledIndices] = useState([]);
+  const [currentStep, setCurrentStep] = useState(0);
   const [isDimmed, setIsDimmed] = useState(false);
   const pixelShift = usePixelShift(60000);
 
@@ -33,14 +34,40 @@ export default function ScreenSaverOverlay({
     return () => clearInterval(timer);
   }, [isActive]);
 
-  // Slideshow transition every 15s in screensaver mode
+  // Générer une liste d'indices mélangés aléatoirement (Fisher-Yates)
+  const shuffleList = (length) => {
+    const arr = Array.from({ length }, (_, i) => i);
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  };
+
+  // À chaque activation de l'économiseur ou mise à jour des photos, mélanger aléatoirement
+  useEffect(() => {
+    if (isActive && photos && photos.length > 0) {
+      const shuffled = shuffleList(photos.length);
+      setShuffledIndices(shuffled);
+      setCurrentStep(0);
+    }
+  }, [isActive, photos?.length]);
+
+  // Transition aléatoire toutes les 15s (ne commence jamais par la même)
   useEffect(() => {
     if (!isActive || !photos || photos.length <= 1) return;
     const interval = setInterval(() => {
-      setPhotoIndex((prev) => (prev + 1) % photos.length);
+      setCurrentStep((prev) => {
+        const next = prev + 1;
+        if (next >= photos.length) {
+          setShuffledIndices(shuffleList(photos.length));
+          return 0;
+        }
+        return next;
+      });
     }, 15000);
     return () => clearInterval(interval);
-  }, [isActive, photos]);
+  }, [isActive, photos?.length]);
 
   // Auto-dimming after 5 min of screensaver to preserve iPad screen & battery
   useEffect(() => {
@@ -57,7 +84,12 @@ export default function ScreenSaverOverlay({
 
   if (!isActive) return null;
 
-  const currentPhoto = photos?.[photoIndex] || photos?.[0];
+  const activePhotoIndex =
+    shuffledIndices.length > 0 && currentStep < shuffledIndices.length
+      ? shuffledIndices[currentStep]
+      : 0;
+
+  const currentPhoto = photos?.[activePhotoIndex] || photos?.[0];
   const hours = String(time.getHours()).padStart(2, '0');
   const minutes = String(time.getMinutes()).padStart(2, '0');
   const seconds = String(time.getSeconds()).padStart(2, '0');
@@ -98,7 +130,7 @@ export default function ScreenSaverOverlay({
             alt={photo.title || 'Photo Économiseur'}
             referrerPolicy="no-referrer"
             className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1500 ease-in-out ${
-              idx === photoIndex ? 'opacity-100 scale-100 animate-ken-burns' : 'opacity-0 scale-105'
+              idx === activePhotoIndex ? 'opacity-100 scale-100 animate-ken-burns' : 'opacity-0 scale-105'
             }`}
           />
         ))}
