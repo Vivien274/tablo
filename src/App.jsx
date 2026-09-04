@@ -56,21 +56,47 @@ export default function App() {
   // Maintien automatique de l'écran iPad allumé en permanence
   useWakeLock();
 
-  // Chargement de la configuration centralisée partagée (/api/config)
+  // Chargement et synchronisation automatique de la configuration centralisée partagée (/api/config)
   useEffect(() => {
-    storage.fetchServerConfig().then((serverConfig) => {
+    const syncConfig = async () => {
+      const serverConfig = await storage.fetchServerConfig();
       if (serverConfig) {
         if (serverConfig.calendars && Array.isArray(serverConfig.calendars)) {
-          setCalendars(serverConfig.calendars);
+          setCalendars((prev) => {
+            if (JSON.stringify(prev) !== JSON.stringify(serverConfig.calendars)) {
+              return serverConfig.calendars;
+            }
+            return prev;
+          });
         }
         if (serverConfig.calendarWebhookUrl !== undefined) {
-          setCalendarWebhookUrl(serverConfig.calendarWebhookUrl);
+          setCalendarWebhookUrl((prev) =>
+            serverConfig.calendarWebhookUrl !== prev ? serverConfig.calendarWebhookUrl : prev
+          );
         }
         if (serverConfig.city) {
-          setCity(serverConfig.city);
+          setCity((prev) => (prev.name !== serverConfig.city.name ? serverConfig.city : prev));
         }
       }
-    });
+    };
+
+    syncConfig();
+
+    // Vérifie automatiquement les changements toutes les 30 secondes
+    const interval = setInterval(syncConfig, 30 * 1000);
+
+    // Et dès que l'écran est touché ou redevient visible
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        syncConfig();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   // Load weather
