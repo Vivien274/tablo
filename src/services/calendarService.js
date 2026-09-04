@@ -318,6 +318,50 @@ export const CALENDAR_COLOR_PRESETS = [
   { label: 'Cyan lagon', value: '#22d3ee' },
 ];
 
+// Télécharger le contenu iCal brut avec gestion multi-environnements (dev local + déploiement Vercel / Netlify / Statique)
+async function downloadIcsContent(cleanUrl) {
+  // 1. Essai via le proxy local /api/fetch-calendar (disponible en local ou avec serverless)
+  try {
+    const res = await fetch(`/api/fetch-calendar?url=${encodeURIComponent(cleanUrl)}&_t=${Date.now()}`);
+    if (res.ok) {
+      const text = await res.text();
+      if (text && text.includes('BEGIN:VCALENDAR')) {
+        return text;
+      }
+    }
+  } catch (e) {
+    // Ignorer et passer au fallback
+  }
+
+  // 2. Fallback proxy CORS public 1: corsproxy.io
+  try {
+    const corsRes = await fetch(`https://corsproxy.io/?url=${encodeURIComponent(cleanUrl)}`);
+    if (corsRes.ok) {
+      const text = await corsRes.text();
+      if (text && text.includes('BEGIN:VCALENDAR')) {
+        return text;
+      }
+    }
+  } catch (e) {
+    // Passer au proxy suivant
+  }
+
+  // 3. Fallback proxy CORS public 2: allorigins.win
+  try {
+    const allOriginsRes = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(cleanUrl)}`);
+    if (allOriginsRes.ok) {
+      const text = await allOriginsRes.text();
+      if (text && text.includes('BEGIN:VCALENDAR')) {
+        return text;
+      }
+    }
+  } catch (e) {
+    // Échec
+  }
+
+  throw new Error("Impossible de télécharger le calendrier iCal. Vérifiez l'adresse ou la connexion.");
+}
+
 // Fetch multiple calendars concurrently and merge events
 export async function fetchMultipleCalendars(calendars = []) {
   const activeCalendars = (calendars || []).filter(
@@ -331,9 +375,7 @@ export async function fetchMultipleCalendars(calendars = []) {
       cleanUrl = cleanUrl.replace('webcal://', 'https://');
     }
     try {
-      const res = await fetch(`/api/fetch-calendar?url=${encodeURIComponent(cleanUrl)}&_t=${Date.now()}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const icsText = await res.text();
+      const icsText = await downloadIcsContent(cleanUrl);
       const events = parseIcsCalendar(icsText);
       return events.map((ev) => ({
         ...ev,
@@ -364,9 +406,7 @@ export async function fetchCalendarFromUrl(calendarUrl, calMeta = {}) {
   }
 
   try {
-    const res = await fetch(`/api/fetch-calendar?url=${encodeURIComponent(cleanUrl)}&_t=${Date.now()}`);
-    if (!res.ok) throw new Error('Erreur de téléchargement du calendrier');
-    const icsText = await res.text();
+    const icsText = await downloadIcsContent(cleanUrl);
     const events = parseIcsCalendar(icsText);
     return events.map((ev) => ({
       ...ev,

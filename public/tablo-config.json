@@ -1,0 +1,26 @@
+{
+  "calendars": [
+    {
+      "id": "cal-vivien",
+      "name": "Vivien",
+      "color": "#38bdf8",
+      "url": "https://calendar.google.com/calendar/ical/vivien274%40gmail.com/private-72f1bfe6d142f4988834d66bd8edc7fc/basic.ics",
+      "enabled": true
+    },
+    {
+      "id": "cal-marches",
+      "name": "Marchés",
+      "color": "#22d3ee",
+      "url": "https://calendar.google.com/calendar/ical/ac4ea2c26ef26ed919293e37db19e46baa04ad2e83e14cc7c877e2f41912c40c%40group.calendar.google.com/private-347f7d256e09c6f3c5f8f83083afc9e9/basic.ics",
+      "enabled": true
+    }
+  ],
+  "calendarWebhookUrl": "",
+  "googleAlbumUrl": "https://photos.app.goo.gl/jDck5X2YPCZ99N868",
+  "city": {
+    "name": "Comines",
+    "label": "Comines (Nord)",
+    "lat": 50.7608,
+    "lon": 3.0075
+  }
+}

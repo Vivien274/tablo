@@ -118,7 +118,11 @@ export const storage = {
   // Synchronisation centralisée avec le serveur local (/api/config)
   fetchServerConfig: async () => {
     try {
-      const res = await fetch(`/api/config?_t=${Date.now()}`);
+      let res = await fetch(`/api/config?_t=${Date.now()}`);
+      if (!res.ok) {
+        // Fallback statique pour version déployée (Vercel, Netlify, GitHub Pages, etc.)
+        res = await fetch(`/tablo-config.json?_t=${Date.now()}`);
+      }
       if (!res.ok) throw new Error('Failed to fetch config');
       const data = await res.json();
       if (data) {
