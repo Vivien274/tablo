@@ -173,7 +173,7 @@ export default function CalendarWidget({
     }
 
     if (allDay) {
-      return { dateStr, timeStr: 'Journée entière' };
+      return { dateStr, timeStr: 'Journée' };
     }
 
     const timeStr = `${String(start.getHours()).padStart(2, '0')}h${String(start.getMinutes()).padStart(2, '0')}`;
@@ -234,7 +234,7 @@ export default function CalendarWidget({
               return (
                 <div
                   key={ev.id}
-                  className="p-3 sm:p-3.5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] flex items-center justify-between gap-3 shadow-sm transition-all"
+                  className="p-3 sm:p-3.5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] flex items-center justify-between gap-3 sm:gap-4 shadow-sm transition-all"
                 >
                   {/* Accent vertical avec couleur de l'agenda */}
                   <div
@@ -242,20 +242,20 @@ export default function CalendarWidget({
                     style={{ backgroundColor: calColor }}
                   />
 
-                  {/* Date & Heure */}
-                  <div className="flex flex-col shrink-0 min-w-[85px]">
+                  {/* Date & Heure : Largeur fixe stricte pour un alignement parfait de tous les titres */}
+                  <div className="flex flex-col shrink-0 w-[100px] sm:w-[115px]">
                     <span
-                      className="text-[11px] font-bold uppercase tracking-wider"
+                      className="text-[11px] font-bold uppercase tracking-wider truncate"
                       style={{ color: calColor }}
                     >
                       {dateStr}
                     </span>
-                    <span className="text-xs font-mono-numbers text-zinc-300 font-medium">
+                    <span className="text-xs font-mono-numbers text-zinc-300 font-medium truncate">
                       {timeStr}
                     </span>
                   </div>
 
-                  {/* Titre & Lieu */}
+                  {/* Titre & Lieu : Alignés à la perfection sur une colonne stricte */}
                   <div className="min-w-0 flex-1">
                     <h4 className="text-sm font-semibold text-white truncate tracking-tight">
                       {ev.title}
