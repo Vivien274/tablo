@@ -4,6 +4,7 @@ import ClockWidget from './components/ClockWidget';
 import WeatherHub from './components/WeatherHub';
 import TodoWidget from './components/TodoWidget';
 import CalendarWidget from './components/CalendarWidget';
+import SettingsModal from './components/SettingsModal';
 import PhotoSettingsModal from './components/PhotoSettingsModal';
 import CityModal from './components/CityModal';
 import ScreenSaverOverlay from './components/ScreenSaverOverlay';
@@ -48,6 +49,7 @@ export default function App() {
 
   const [isCityModalOpen, setIsCityModalOpen] = useState(false);
   const [isPhotoSettingsOpen, setIsPhotoSettingsOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isScreenSaverActive, setIsScreenSaverActive] = useState(false);
   const [isNightModeActive, setIsNightModeActive] = useState(() => isWithinNightHours());
 
@@ -270,11 +272,12 @@ export default function App() {
 
   return (
     <div className="h-screen max-h-screen bg-[#07080c] text-zinc-100 p-3 sm:p-4 md:p-5 flex flex-col justify-between max-w-[1720px] mx-auto w-full overflow-hidden">
-      {/* En-tête épuré */}
+      {/* En-tête épuré avec picto Paramètres */}
       <HeaderBar
         currentCity={city}
         onOpenCityModal={() => setIsCityModalOpen(true)}
         onOpenPhotoSettings={() => setIsPhotoSettingsOpen(true)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
         onTriggerScreenSaver={handleTriggerScreenSaver}
         onToggleNightMode={handleToggleNightMode}
       />
@@ -321,6 +324,7 @@ export default function App() {
             onUpdateCalendarWebhookUrl={handleUpdateCalendarWebhookUrl}
             onRefreshCalendar={() => loadCalendar(calendars)}
             onAddLocalEvent={handleAddLocalEvent}
+            onOpenSettings={() => setIsSettingsOpen(true)}
             members={members}
           />
         </div>
@@ -340,6 +344,20 @@ export default function App() {
         onClose={() => setIsPhotoSettingsOpen(false)}
         photos={photos}
         onUpdatePhotos={handleUpdatePhotos}
+      />
+
+      {/* Paramètres Centraux de Tablo (Agendas, Webhook, Photos, Météo) */}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        calendars={calendars}
+        onUpdateCalendars={handleUpdateCalendars}
+        calendarWebhookUrl={calendarWebhookUrl}
+        onUpdateCalendarWebhookUrl={handleUpdateCalendarWebhookUrl}
+        photos={photos}
+        onUpdatePhotos={handleUpdatePhotos}
+        currentCity={city}
+        onSelectCity={handleSelectCity}
       />
 
       {/* 1. Économiseur d'écran Diaporama (Photo en fond + 2 colonnes en haut + Tâches en bas à gauche + Pixel-shift) */}

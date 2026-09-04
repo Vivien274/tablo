@@ -4,14 +4,14 @@ import {
   Minimize,
   Moon,
   Sparkles,
-  Image as ImageIcon,
+  Settings,
 } from 'lucide-react';
 
 export default function HeaderBar({
   onTriggerScreenSaver,
   onToggleNightMode,
   onOpenCityModal,
-  onOpenPhotoSettings,
+  onOpenSettings,
   currentCity,
 }) {
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -48,7 +48,7 @@ export default function HeaderBar({
             type="button"
             onClick={onOpenCityModal}
             className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 transition-all touch-press cursor-pointer active:scale-95"
-            title="Changer le lieu"
+            title="Changer le lieu météo"
           >
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 animate-pulse" />
             <span>{currentCity?.name || 'Comines'}</span>
@@ -61,40 +61,39 @@ export default function HeaderBar({
 
       {/* Right controls */}
       <div className="flex items-center gap-2">
-
-        {/* 1. Bouton Écran de Veille Photos & Source Photos */}
-        <div className="flex items-center rounded-xl bg-white/[0.04] border border-white/[0.08] p-0.5">
-          <button
-            onClick={onTriggerScreenSaver}
-            className="px-2.5 py-1 rounded-lg hover:bg-sky-500/15 hover:text-sky-300 text-zinc-300 text-xs font-medium flex items-center gap-1.5 transition-all touch-press"
-            title="Lancer l'économiseur d'écran (Photos + Heure + Météo + Tâches)"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-sky-400" />
-            <span className="hidden sm:inline">Veille Photos</span>
-          </button>
-          <div className="w-[1px] h-3.5 bg-white/10" />
-          <button
-            onClick={onOpenPhotoSettings}
-            className="p-1.5 rounded-lg hover:bg-sky-500/15 hover:text-sky-300 text-zinc-400 transition-all touch-press"
-            title="Configurer l'album Google Photos de l'écran de veille"
-          >
-            <ImageIcon className="w-3.5 h-3.5 text-sky-400/80" />
-          </button>
-        </div>
+        {/* 1. Bouton Écran de Veille Photos */}
+        <button
+          onClick={onTriggerScreenSaver}
+          className="px-2.5 py-1.5 rounded-xl bg-white/[0.04] hover:bg-sky-500/15 hover:text-sky-300 border border-white/[0.08] text-zinc-300 text-xs font-medium flex items-center gap-1.5 transition-all touch-press active:scale-95"
+          title="Lancer l'écran de veille photos"
+        >
+          <Sparkles className="w-3.5 h-3.5 text-sky-400" />
+          <span className="hidden sm:inline">Veille</span>
+        </button>
 
         {/* 2. Bouton Mode Nuit OLED */}
         <button
           onClick={onToggleNightMode}
-          className="p-2 rounded-xl bg-white/[0.04] hover:bg-amber-500/15 hover:text-amber-300 border border-white/[0.08] text-zinc-400 transition-all touch-press"
-          title="Mode Nuit OLED (Sommeil profond)"
+          className="p-2 rounded-xl bg-white/[0.04] hover:bg-amber-500/15 hover:text-amber-300 border border-white/[0.08] text-zinc-400 transition-all touch-press active:scale-95"
+          title="Mode Nuit OLED"
         >
           <Moon className="w-4 h-4" />
         </button>
 
-        {/* 3. Fullscreen toggle */}
+        {/* 3. Bouton Paramètres Réglages Globaux */}
+        <button
+          onClick={onOpenSettings}
+          className="p-2 sm:px-2.5 sm:py-1.5 rounded-xl bg-white/[0.04] hover:bg-sky-500/15 hover:text-sky-300 border border-white/[0.08] text-zinc-300 transition-all touch-press active:scale-95 flex items-center gap-1.5"
+          title="Paramètres de Tablo (Agendas, Photos, Synchronisation, Météo)"
+        >
+          <Settings className="w-4 h-4 text-sky-400" />
+          <span className="hidden sm:inline text-xs font-medium">Réglages</span>
+        </button>
+
+        {/* 4. Fullscreen toggle */}
         <button
           onClick={toggleFullscreen}
-          className="p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-zinc-400 hover:text-white border border-white/[0.08] transition-all touch-press"
+          className="p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-zinc-400 hover:text-white border border-white/[0.08] transition-all touch-press active:scale-95"
           title={isFullscreen ? 'Quitter plein écran' : 'Plein écran mural'}
         >
           {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
