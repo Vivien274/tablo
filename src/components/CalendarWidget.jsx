@@ -188,15 +188,24 @@ export default function CalendarWidget({
       const activeToFetch = validCalendars.filter((c) => c.enabled && c.url);
       if (activeToFetch.length > 0) {
         const events = await fetchMultipleCalendars(activeToFetch);
-        setCalSuccessMsg(`Synchronisé avec succès ! (${events.length} événement(s) récupéré(s) au total)`);
+        if (events.length > 0) {
+          setCalSuccessMsg(`Synchronisé avec succès ! (${events.length} événement(s) récupéré(s))`);
+          setTimeout(() => {
+            setIsCalendarModalOpen(false);
+            setCalSuccessMsg(null);
+          }, 1500);
+        } else {
+          setCalErrorMsg(
+            `0 événement à venir trouvé sur les ${activeToFetch.length} agenda(s). Vérifiez que des rendez-vous existent bien dans les 90 prochains jours et que l'URL utilisée est bien l'Adresse SECRÈTE au format iCal (les adresses publiques ou liens de partage ne fonctionnent pas pour les agendas privés).`
+          );
+        }
       } else {
         setCalSuccessMsg('Calendriers enregistrés !');
+        setTimeout(() => {
+          setIsCalendarModalOpen(false);
+          setCalSuccessMsg(null);
+        }, 1500);
       }
-
-      setTimeout(() => {
-        setIsCalendarModalOpen(false);
-        setCalSuccessMsg(null);
-      }, 1500);
     } catch (err) {
       setCalErrorMsg(
         err.message ||
@@ -831,6 +840,24 @@ export default function CalendarWidget({
                             className="w-full bg-black/60 border border-white/15 rounded-xl pl-8 pr-3 py-2 text-[11px] sm:text-xs text-white focus:outline-none focus:border-sky-400 placeholder-zinc-600 font-mono-numbers"
                           />
                         </div>
+
+                        {/* Avertissements d'aide à la saisie de l'URL */}
+                        {cal.url && cal.url.includes('/public/') && (
+                          <div className="text-[10px] text-amber-300/90 flex items-start gap-1.5 pt-0.5 pl-1">
+                            <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+                            <span>
+                              Attention : il s'agit de l'adresse « publique ». Si l'agenda n'est pas coché public dans Google, elle renvoie une erreur 404. Utilisez l'Adresse <strong>SECRÈTE</strong> au format iCal !
+                            </span>
+                          </div>
+                        )}
+                        {cal.url && !cal.url.includes('.ics') && !cal.url.startsWith('webcal://') && (
+                          <div className="text-[10px] text-rose-300/90 flex items-start gap-1.5 pt-0.5 pl-1">
+                            <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0 mt-0.5" />
+                            <span>
+                              Cette URL ne semble pas être un flux iCal (doit contenir ou se terminer par <code>/basic.ics</code>).
+                            </span>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

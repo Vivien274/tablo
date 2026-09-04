@@ -46,6 +46,8 @@ export function parseIcsCalendar(icsContent) {
       } else if (line.startsWith('DTEND')) {
         const value = line.split(':').pop();
         currentEvent.endDate = parseIcsDate(value);
+      } else if (line.startsWith('RRULE:')) {
+        currentEvent.rrule = line.substring(6).trim();
       } else if (line.startsWith('UID:')) {
         currentEvent.id = line.substring(4).trim();
       }
@@ -54,7 +56,10 @@ export function parseIcsCalendar(icsContent) {
 
   if (rawEvents.length === 0) return [];
 
-  return rawEvents
+  // Développer les événements récurrents (RRULE) sur les 90 prochains jours
+  const expandedEvents = expandRecurringEvents(rawEvents);
+
+  return expandedEvents
     .map((ev, idx) => {
       const titleLower = (ev.title || '').toLowerCase();
       let member = 'all';
@@ -127,6 +132,159 @@ function parseIcsDate(dateStr) {
     return new Date(y, m - 1, d, h, min, s);
   }
   return new Date(dateStr);
+}
+
+// Développer les règles de récurrence iCal (RRULE) sur les 90 prochains jours
+function expandRecurringEvents(events) {
+  const now = new Date();
+  const windowStartMs = now.getTime() - 24 * 3600 * 1000;
+  const windowEndMs = now.getTime() + 90 * 24 * 3600 * 1000;
+
+  const expanded = [];
+
+  for (const ev of events) {
+    if (!ev.rrule) {
+      expanded.push(ev);
+      continue;
+    }
+
+    const params = {};
+    ev.rrule.split(';').forEach((part) => {
+      const [k, v] = part.split('=');
+      if (k && v) params[k.toUpperCase()] = v.toUpperCase();
+    });
+
+    const freq = params.FREQ;
+    const startDate = new Date(ev.startDate);
+    const baseTime = startDate.getTime();
+    const durationMs = ev.endDate
+      ? Math.max(0, new Date(ev.endDate).getTime() - baseTime)
+      : 3600000;
+
+    let until = Infinity;
+    if (params.UNTIL) {
+      until = parseIcsDate(params.UNTIL).getTime();
+    }
+    const maxCount = params.COUNT ? parseInt(params.COUNT, 10) : 120;
+
+    // Si l'événement d'origine est dans la fenêtre
+    if (baseTime >= windowStartMs && baseTime <= windowEndMs && baseTime <= until) {
+      expanded.push(ev);
+    }
+
+    if (freq === 'WEEKLY') {
+      const daysMap = { SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6 };
+      const byDays = params.BYDAY
+        ? params.BYDAY.split(',')
+            .map((d) => daysMap[d.slice(-2)])
+            .filter((d) => d !== undefined)
+        : [startDate.getDay()];
+
+      let cur = new Date(Math.max(baseTime, windowStartMs - 7 * 86400000));
+      cur.setHours(startDate.getHours(), startDate.getMinutes(), startDate.getSeconds(), 0);
+
+      let count = 0;
+      while (cur.getTime() <= windowEndMs && count < maxCount) {
+        if (
+          byDays.includes(cur.getDay()) &&
+          cur.getTime() >= baseTime &&
+          cur.getTime() <= until
+        ) {
+          if (cur.getTime() >= windowStartMs && cur.getTime() <= windowEndMs) {
+            if (cur.getTime() !== baseTime) {
+              expanded.push({
+                ...ev,
+                id: `${ev.id}-rec-${cur.getTime()}`,
+                startDate: new Date(cur),
+                endDate: new Date(cur.getTime() + durationMs),
+              });
+            }
+            count++;
+          }
+        }
+        cur = new Date(cur.getTime() + 86400000);
+      }
+    } else if (freq === 'DAILY') {
+      const interval = params.INTERVAL ? parseInt(params.INTERVAL, 10) : 1;
+      let cur = new Date(Math.max(baseTime, windowStartMs - 86400000));
+      cur.setHours(startDate.getHours(), startDate.getMinutes(), startDate.getSeconds(), 0);
+
+      let count = 0;
+      while (cur.getTime() <= windowEndMs && count < maxCount) {
+        if (cur.getTime() >= baseTime && cur.getTime() <= until) {
+          if (cur.getTime() >= windowStartMs && cur.getTime() <= windowEndMs) {
+            if (cur.getTime() !== baseTime) {
+              expanded.push({
+                ...ev,
+                id: `${ev.id}-rec-${cur.getTime()}`,
+                startDate: new Date(cur),
+                endDate: new Date(cur.getTime() + durationMs),
+              });
+            }
+            count++;
+          }
+        }
+        cur = new Date(cur.getTime() + interval * 86400000);
+      }
+    } else if (freq === 'MONTHLY') {
+      const dayOfMonth = startDate.getDate();
+      const curYear = now.getFullYear();
+      for (let m = 0; m < 4; m++) {
+        const targetDate = new Date(
+          curYear,
+          now.getMonth() + m,
+          dayOfMonth,
+          startDate.getHours(),
+          startDate.getMinutes()
+        );
+        if (
+          targetDate.getTime() >= windowStartMs &&
+          targetDate.getTime() <= windowEndMs &&
+          targetDate.getTime() <= until &&
+          targetDate.getTime() >= baseTime
+        ) {
+          if (targetDate.getTime() !== baseTime) {
+            expanded.push({
+              ...ev,
+              id: `${ev.id}-rec-${targetDate.getTime()}`,
+              startDate: targetDate,
+              endDate: new Date(targetDate.getTime() + durationMs),
+            });
+          }
+        }
+      }
+    } else if (freq === 'YEARLY') {
+      const curYear = now.getFullYear();
+      for (const yr of [curYear, curYear + 1]) {
+        const targetDate = new Date(
+          yr,
+          startDate.getMonth(),
+          startDate.getDate(),
+          startDate.getHours(),
+          startDate.getMinutes()
+        );
+        if (
+          targetDate.getTime() >= windowStartMs &&
+          targetDate.getTime() <= windowEndMs &&
+          targetDate.getTime() <= until &&
+          targetDate.getTime() >= baseTime
+        ) {
+          if (targetDate.getTime() !== baseTime) {
+            expanded.push({
+              ...ev,
+              id: `${ev.id}-rec-${targetDate.getTime()}`,
+              startDate: targetDate,
+              endDate: new Date(targetDate.getTime() + durationMs),
+            });
+          }
+        }
+      }
+    } else {
+      expanded.push(ev);
+    }
+  }
+
+  return expanded.length > 0 ? expanded : events;
 }
 
 export const CALENDAR_COLOR_PRESETS = [

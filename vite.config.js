@@ -160,12 +160,22 @@ const tabloProxyPlugin = {
           },
         });
         const icsText = await response.text();
+        console.log(`[fetch-calendar] ${targetUrl.slice(0, 90)}... => HTTP ${response.status}, length: ${icsText.length}`);
+        
+        if (!response.ok) {
+          res.statusCode = response.status;
+          res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+          res.end(icsText || `Error ${response.status}`);
+          return;
+        }
+
         res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
         res.setHeader('Pragma', 'no-cache');
         res.setHeader('Expires', '0');
         res.end(icsText);
       } catch (err) {
+        console.error(`[fetch-calendar] Error for ${targetUrl}:`, err);
         res.statusCode = 500;
         res.end(err.message || 'Error fetching calendar');
       }
