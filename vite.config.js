@@ -1,11 +1,89 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import fs from 'node:fs'
+import path from 'node:path'
+
+const CONFIG_FILE = path.resolve(process.cwd(), 'tablo-config.json');
+
+const DEFAULT_CONFIG = {
+  calendars: [
+    {
+      id: 'cal-vivien',
+      name: 'Vivien',
+      color: '#38bdf8',
+      url: 'https://calendar.google.com/calendar/ical/vivien274%40gmail.com/private-72f1bfe6d142f4988834d66bd8edc7fc/basic.ics',
+      enabled: true,
+    },
+  ],
+  calendarWebhookUrl: '',
+  googleAlbumUrl: 'https://photos.app.goo.gl/jDck5X2YPCZ99N868',
+  city: { name: 'Comines', label: 'Comines (Nord)', lat: 50.7608, lon: 3.0075 },
+};
+
+function readCentralConfig() {
+  try {
+    if (fs.existsSync(CONFIG_FILE)) {
+      const data = fs.readFileSync(CONFIG_FILE, 'utf-8');
+      return { ...DEFAULT_CONFIG, ...JSON.parse(data) };
+    }
+  } catch (err) {
+    console.error('Error reading tablo-config.json:', err);
+  }
+  return DEFAULT_CONFIG;
+}
+
+function writeCentralConfig(updates) {
+  try {
+    const current = readCentralConfig();
+    const merged = { ...current, ...updates };
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(merged, null, 2), 'utf-8');
+    return merged;
+  } catch (err) {
+    console.error('Error writing tablo-config.json:', err);
+    return null;
+  }
+}
 
 // Custom plugin for proxying Google Photos & iCal Calendars
 const tabloProxyPlugin = {
   name: 'tablo-proxy-plugin',
   configureServer(server) {
+    // 0. Configuration centralisée (partagée entre Mac, iPad et tout appareil)
+    server.middlewares.use('/api/config', (req, res) => {
+      if (req.method === 'GET') {
+        const config = readCentralConfig();
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.end(JSON.stringify(config));
+        return;
+      }
+
+      if (req.method === 'POST') {
+        let body = '';
+        req.on('data', (chunk) => { body += chunk; });
+        req.on('end', () => {
+          try {
+            const updates = JSON.parse(body || '{}');
+            const saved = writeCentralConfig(updates);
+            if (saved) {
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ status: 'success', config: saved }));
+            } else {
+              res.statusCode = 500;
+              res.end(JSON.stringify({ error: 'Failed to write config' }));
+            }
+          } catch (err) {
+            res.statusCode = 400;
+            res.end(JSON.stringify({ error: err.message }));
+          }
+        });
+        return;
+      }
+
+      res.statusCode = 405;
+      res.end('Method Not Allowed');
+    });
     // 1. Proxy pour les albums Google Photos
     server.middlewares.use('/api/fetch-album', async (req, res) => {
       const parsedUrl = new URL(req.url, 'http://localhost');

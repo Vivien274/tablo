@@ -93,6 +93,16 @@ export const INITIAL_PHOTOS = [
   },
 ];
 
+export const DEFAULT_CALENDARS = [
+  {
+    id: 'cal-vivien',
+    name: 'Vivien',
+    color: '#38bdf8',
+    url: 'https://calendar.google.com/calendar/ical/vivien274%40gmail.com/private-72f1bfe6d142f4988834d66bd8edc7fc/basic.ics',
+    enabled: true,
+  },
+];
+
 const KEYS = {
   TODOS: 'tablo_todos_v2',
   MEMBERS: 'tablo_members_v2',
@@ -100,9 +110,42 @@ const KEYS = {
   NOTES: 'tablo_notes',
   CITY: 'tablo_city',
   GP_ALBUM: 'tablo_gp_album_url',
+  CALENDARS: 'tablo_calendars',
+  CAL_WEBHOOK: 'tablo_cal_webhook',
 };
 
 export const storage = {
+  // Synchronisation centralisée avec le serveur local (/api/config)
+  fetchServerConfig: async () => {
+    try {
+      const res = await fetch(`/api/config?_t=${Date.now()}`);
+      if (!res.ok) throw new Error('Failed to fetch config');
+      const data = await res.json();
+      if (data) {
+        if (data.calendars) storage.setCalendars(data.calendars, false);
+        if (data.calendarWebhookUrl !== undefined) storage.setCalendarWebhookUrl(data.calendarWebhookUrl, false);
+        if (data.googleAlbumUrl) storage.setGoogleAlbumUrl(data.googleAlbumUrl, false);
+        if (data.city) storage.setCity(data.city, false);
+        return data;
+      }
+    } catch (e) {
+      console.warn('Central config fetch fallback to localStorage:', e);
+    }
+    return null;
+  },
+
+  saveServerConfig: async (updates) => {
+    try {
+      await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+    } catch (e) {
+      console.warn('Could not persist to server config:', e);
+    }
+  },
+
   getTodos: () => {
     try {
       const data = localStorage.getItem(KEYS.TODOS);
@@ -155,44 +198,94 @@ export const storage = {
       return 'https://photos.app.goo.gl/jDck5X2YPCZ99N868';
     }
   },
-  setGoogleAlbumUrl: (url) => {
+  setGoogleAlbumUrl: (url, syncToServer = true) => {
     try {
       localStorage.setItem(KEYS.GP_ALBUM, url);
+      if (syncToServer) {
+        storage.saveServerConfig({ googleAlbumUrl: url });
+      }
     } catch (e) {
       console.error(e);
     }
   },
-  getCalendarUrl: () => {
+
+  // Multi-calendriers
+  getCalendars: () => {
     try {
-      return (
-        localStorage.getItem('tablo_cal_url') ||
-        'https://calendar.google.com/calendar/ical/vivien274%40gmail.com/private-72f1bfe6d142f4988834d66bd8edc7fc/basic.ics'
-      );
+      const data = localStorage.getItem(KEYS.CALENDARS);
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      const legacyUrl = localStorage.getItem('tablo_cal_url');
+      if (legacyUrl) {
+        return [
+          {
+            id: 'cal-legacy',
+            name: 'Vivien',
+            color: '#38bdf8',
+            url: legacyUrl,
+            enabled: true,
+          },
+        ];
+      }
+      return DEFAULT_CALENDARS;
     } catch {
-      return 'https://calendar.google.com/calendar/ical/vivien274%40gmail.com/private-72f1bfe6d142f4988834d66bd8edc7fc/basic.ics';
+      return DEFAULT_CALENDARS;
     }
+  },
+  setCalendars: (calendars, syncToServer = true) => {
+    try {
+      localStorage.setItem(KEYS.CALENDARS, JSON.stringify(calendars));
+      if (syncToServer) {
+        storage.saveServerConfig({ calendars });
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  },
+
+  // Rétrocompatibilité URL unique
+  getCalendarUrl: () => {
+    const calendars = storage.getCalendars();
+    return calendars?.[0]?.url || '';
   },
   setCalendarUrl: (url) => {
-    try {
-      localStorage.setItem('tablo_cal_url', url);
-    } catch (e) {
-      console.error(e);
+    const calendars = storage.getCalendars();
+    if (calendars.length > 0) {
+      const updated = calendars.map((c, i) => (i === 0 ? { ...c, url } : c));
+      storage.setCalendars(updated);
+    } else {
+      storage.setCalendars([
+        {
+          id: 'cal-1',
+          name: 'Principal',
+          color: '#38bdf8',
+          url,
+          enabled: true,
+        },
+      ]);
     }
   },
+
   getCalendarWebhookUrl: () => {
     try {
-      return localStorage.getItem('tablo_cal_webhook') || '';
+      return localStorage.getItem(KEYS.CAL_WEBHOOK) || '';
     } catch {
       return '';
     }
   },
-  setCalendarWebhookUrl: (url) => {
+  setCalendarWebhookUrl: (url, syncToServer = true) => {
     try {
-      localStorage.setItem('tablo_cal_webhook', url);
+      localStorage.setItem(KEYS.CAL_WEBHOOK, url);
+      if (syncToServer) {
+        storage.saveServerConfig({ calendarWebhookUrl: url });
+      }
     } catch (e) {
       console.error(e);
     }
   },
+
   getCustomCalendarEvents: () => {
     try {
       const data = localStorage.getItem('tablo_custom_cal_events');
@@ -226,9 +319,12 @@ export const storage = {
       return { name: 'Comines', label: 'Comines (Nord)', lat: 50.7608, lon: 3.0075 };
     }
   },
-  setCity: (city) => {
+  setCity: (city, syncToServer = true) => {
     try {
       localStorage.setItem(KEYS.CITY, JSON.stringify(city));
+      if (syncToServer) {
+        storage.saveServerConfig({ city });
+      }
     } catch (e) {
       console.error(e);
     }

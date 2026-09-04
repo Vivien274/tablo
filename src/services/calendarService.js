@@ -129,8 +129,53 @@ function parseIcsDate(dateStr) {
   return new Date(dateStr);
 }
 
-// Fetch calendar from URL
-export async function fetchCalendarFromUrl(calendarUrl) {
+export const CALENDAR_COLOR_PRESETS = [
+  { label: 'Bleu ciel', value: '#38bdf8' },
+  { label: 'Vert émeraude', value: '#34d399' },
+  { label: 'Rose framboise', value: '#fb7185' },
+  { label: 'Ambre / Jaune', value: '#fbbf24' },
+  { label: 'Violet pastel', value: '#c084fc' },
+  { label: 'Indigo', value: '#818cf8' },
+  { label: 'Orange vif', value: '#fb923c' },
+  { label: 'Cyan lagon', value: '#22d3ee' },
+];
+
+// Fetch multiple calendars concurrently and merge events
+export async function fetchMultipleCalendars(calendars = []) {
+  const activeCalendars = (calendars || []).filter(
+    (c) => c && c.enabled !== false && c.url && c.url.trim()
+  );
+  if (activeCalendars.length === 0) return [];
+
+  const promises = activeCalendars.map(async (cal) => {
+    let cleanUrl = cal.url.trim();
+    if (cleanUrl.startsWith('webcal://')) {
+      cleanUrl = cleanUrl.replace('webcal://', 'https://');
+    }
+    try {
+      const res = await fetch(`/api/fetch-calendar?url=${encodeURIComponent(cleanUrl)}&_t=${Date.now()}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const icsText = await res.text();
+      const events = parseIcsCalendar(icsText);
+      return events.map((ev) => ({
+        ...ev,
+        calendarId: cal.id,
+        calendarName: cal.name || 'Agenda',
+        calendarColor: cal.color || '#38bdf8',
+      }));
+    } catch (err) {
+      console.warn(`Erreur lors de la synchronisation de l'agenda "${cal.name}":`, err);
+      return [];
+    }
+  });
+
+  const results = await Promise.all(promises);
+  const allEvents = results.flat();
+  return allEvents.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+}
+
+// Fetch calendar from URL (rétrocompatibilité)
+export async function fetchCalendarFromUrl(calendarUrl, calMeta = {}) {
   if (!calendarUrl || !calendarUrl.trim()) {
     return [];
   }
@@ -145,7 +190,12 @@ export async function fetchCalendarFromUrl(calendarUrl) {
     if (!res.ok) throw new Error('Erreur de téléchargement du calendrier');
     const icsText = await res.text();
     const events = parseIcsCalendar(icsText);
-    return events;
+    return events.map((ev) => ({
+      ...ev,
+      calendarId: calMeta.id || 'default',
+      calendarName: calMeta.name || 'Agenda',
+      calendarColor: calMeta.color || '#38bdf8',
+    }));
   } catch (err) {
     if (err.message === '404_NOT_FOUND' || (err.message && err.message.includes('404'))) {
       throw new Error("L'agenda Google renvoie une erreur 404. Veuillez utiliser l'Adresse secrète au format iCal.");

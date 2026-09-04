@@ -1,0 +1,19 @@
+{
+  "calendars": [
+    {
+      "id": "cal-vivien",
+      "name": "Vivien",
+      "color": "#38bdf8",
+      "url": "https://calendar.google.com/calendar/ical/vivien274%40gmail.com/private-72f1bfe6d142f4988834d66bd8edc7fc/basic.ics",
+      "enabled": true
+    }
+  ],
+  "calendarWebhookUrl": "",
+  "googleAlbumUrl": "https://photos.app.goo.gl/jDck5X2YPCZ99N868",
+  "city": {
+    "name": "Comines",
+    "label": "Comines (Nord)",
+    "lat": 50.7608,
+    "lon": 3.0075
+  }
+}

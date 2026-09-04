@@ -10,7 +10,7 @@ import ScreenSaverOverlay from './components/ScreenSaverOverlay';
 import NightScheduleOverlay from './components/NightScheduleOverlay';
 import { fetchWeather } from './services/weatherService';
 import { fetchSharedGooglePhotosAlbum } from './services/googlePhotosService';
-import { fetchCalendarFromUrl, DEFAULT_CALENDAR_EVENTS } from './services/calendarService';
+import { fetchMultipleCalendars, DEFAULT_CALENDAR_EVENTS } from './services/calendarService';
 import { storage } from './services/storageService';
 import { useWakeLock } from './hooks/useWakeLock';
 
@@ -42,7 +42,7 @@ export default function App() {
   const [members] = useState(() => storage.getMembers());
   const [photos, setPhotos] = useState(() => storage.getPhotos());
 
-  const [calendarUrl, setCalendarUrl] = useState(() => storage.getCalendarUrl());
+  const [calendars, setCalendars] = useState(() => storage.getCalendars());
   const [calendarWebhookUrl, setCalendarWebhookUrl] = useState(() => storage.getCalendarWebhookUrl());
   const [calendarEvents, setCalendarEvents] = useState(() => storage.getCustomCalendarEvents());
 
@@ -55,6 +55,23 @@ export default function App() {
 
   // Maintien automatique de l'écran iPad allumé en permanence
   useWakeLock();
+
+  // Chargement de la configuration centralisée partagée (/api/config)
+  useEffect(() => {
+    storage.fetchServerConfig().then((serverConfig) => {
+      if (serverConfig) {
+        if (serverConfig.calendars && Array.isArray(serverConfig.calendars)) {
+          setCalendars(serverConfig.calendars);
+        }
+        if (serverConfig.calendarWebhookUrl !== undefined) {
+          setCalendarWebhookUrl(serverConfig.calendarWebhookUrl);
+        }
+        if (serverConfig.city) {
+          setCity(serverConfig.city);
+        }
+      }
+    });
+  }, []);
 
   // Load weather
   const loadWeather = useCallback(async (targetCity) => {
@@ -73,8 +90,8 @@ export default function App() {
   }, [city, loadWeather]);
 
   // Sync Calendar avec fusion et persistance des événements locaux ajoutés
-  const loadCalendar = useCallback(async (url) => {
-    const fetchedEvents = await fetchCalendarFromUrl(url);
+  const loadCalendar = useCallback(async (currentCalendars) => {
+    const fetchedEvents = await fetchMultipleCalendars(currentCalendars);
     const customEvents = storage.getCustomCalendarEvents();
 
     // Vérifier si des customEvents ont déjà été intégrés dans le flux Google pour éviter les doublons
@@ -98,12 +115,12 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    loadCalendar(calendarUrl);
+    loadCalendar(calendars);
     const interval = setInterval(() => {
-      loadCalendar(calendarUrl);
+      loadCalendar(calendars);
     }, 15 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [calendarUrl, loadCalendar]);
+  }, [calendars, loadCalendar]);
 
   // Initial sync for Google Photos
   useEffect(() => {
@@ -209,15 +226,15 @@ export default function App() {
     storage.setPhotos(newPhotos);
   };
 
-  const handleUpdateCalendarUrl = (newUrl) => {
-    setCalendarUrl(newUrl);
-    storage.setCalendarUrl(newUrl);
-    loadCalendar(newUrl);
+  const handleUpdateCalendars = (newCalendars) => {
+    setCalendars(newCalendars);
+    storage.setCalendars(newCalendars, true);
+    loadCalendar(newCalendars);
   };
 
   const handleUpdateCalendarWebhookUrl = (newUrl) => {
     setCalendarWebhookUrl(newUrl);
-    storage.setCalendarWebhookUrl(newUrl);
+    storage.setCalendarWebhookUrl(newUrl, true);
   };
 
   const handleAddLocalEvent = (newEvent) => {
@@ -238,23 +255,23 @@ export default function App() {
 
       {/* 
         Grille Bento 2 Colonnes & 2 Lignes (Split 35% / 65%) :
-        Ligne 1 (35% hauteur) : 1. Heure | 2. Météo (Gradient Weather)
-        Ligne 2 (65% hauteur) : 3. Tâches familiales | 4. Agenda familial
+        - Colonne Gauche : Horloge Minimaliste + Tâches Familiales
+        - Colonne Droite : Météo Ultra-Précise + Agenda Familial
       */}
-      <main className="grid grid-cols-1 lg:grid-cols-2 grid-rows-[auto_auto] lg:grid-rows-[35fr_65fr] gap-3 sm:gap-4 md:gap-5 my-2 flex-1 items-stretch w-full overflow-hidden">
+      <main className="flex-1 grid grid-cols-1 md:grid-cols-2 grid-rows-[35%_65%] gap-4 sm:gap-5 min-h-0 pt-2 pb-1 overflow-hidden">
         {/* LIGNE 1 (35% HAUTEUR) */}
-        {/* 1. HEURE */}
+        {/* 1. HORLOGE GÉANTE */}
         <div className="w-full h-full flex overflow-hidden">
-          <ClockWidget weatherData={weatherData} />
+          <ClockWidget />
         </div>
 
-        {/* 2. MÉTÉO */}
+        {/* 2. MÉTÉO HUB */}
         <div className="w-full h-full flex overflow-hidden">
           <WeatherHub
             weatherData={weatherData}
+            isLoading={isWeatherLoading}
             currentCity={city}
             onOpenCityModal={() => setIsCityModalOpen(true)}
-            isLoading={isWeatherLoading}
           />
         </div>
 
@@ -268,15 +285,15 @@ export default function App() {
           />
         </div>
 
-        {/* 4. AGENDA FAMILIAL */}
+        {/* 4. AGENDA FAMILIAL (MULTI-CALENDRIERS CENTRALISÉ) */}
         <div className="w-full h-full flex overflow-hidden">
           <CalendarWidget
             calendarEvents={calendarEvents}
-            calendarUrl={calendarUrl}
-            onUpdateCalendarUrl={handleUpdateCalendarUrl}
+            calendars={calendars}
+            onUpdateCalendars={handleUpdateCalendars}
             calendarWebhookUrl={calendarWebhookUrl}
             onUpdateCalendarWebhookUrl={handleUpdateCalendarWebhookUrl}
-            onRefreshCalendar={() => loadCalendar(calendarUrl)}
+            onRefreshCalendar={() => loadCalendar(calendars)}
             onAddLocalEvent={handleAddLocalEvent}
             members={members}
           />
