@@ -164,7 +164,27 @@ function expandRecurringEvents(events) {
     let until = Infinity;
     if (params.UNTIL) {
       until = parseIcsDate(params.UNTIL).getTime();
+      if (until < windowStartMs) {
+        // La récurrence est terminée dans le passé
+        continue;
+      }
     }
+
+    if (params.COUNT) {
+      const count = parseInt(params.COUNT, 10);
+      const interval = params.INTERVAL ? parseInt(params.INTERVAL, 10) : 1;
+      let estimatedEndMs = baseTime;
+      if (freq === 'DAILY') estimatedEndMs += count * interval * 86400000;
+      else if (freq === 'WEEKLY') estimatedEndMs += count * interval * 7 * 86400000;
+      else if (freq === 'MONTHLY') estimatedEndMs += count * interval * 31 * 86400000;
+      else if (freq === 'YEARLY') estimatedEndMs += count * interval * 366 * 86400000;
+
+      if (estimatedEndMs < windowStartMs) {
+        // La récurrence limitée (ex: COUNT=3) a expiré depuis longtemps dans le passé
+        continue;
+      }
+    }
+
     const maxCount = params.COUNT ? parseInt(params.COUNT, 10) : 120;
 
     // Si l'événement d'origine est dans la fenêtre
